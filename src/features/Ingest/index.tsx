@@ -35,6 +35,9 @@ export default memo(() => {
         alert(`not support errorCode: ${err.errorCode}`);
         alert(`not support message: ${err.message}`);
       });
+    return () => {
+      aliRts.unpublish();
+    };
   }, [aliRts]);
 
   const Hls = useMemo(() => {
@@ -70,6 +73,7 @@ export default memo(() => {
       })
       .catch((err) => {
         console.error("createStream", err);
+        alert(err.message);
         // The local stream failed to be added.
       });
   }, []);
@@ -85,6 +89,7 @@ export default memo(() => {
         .catch((err) => {
           // The stream failed to be ingested.
           console.error("publish", err);
+          alert(err.message);
         });
     }
   }, [host, localStream, aliRts]);
@@ -93,8 +98,9 @@ export default memo(() => {
     try {
       await aliRts.unpublish();
       setStatusStream(StatusStream.ended);
-    } catch (err) {
+    } catch (err: any) {
       console.error("unpublish", err);
+      alert(err?.message);
     }
   }, [aliRts]);
 
