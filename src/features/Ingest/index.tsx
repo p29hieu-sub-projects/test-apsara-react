@@ -1,15 +1,10 @@
 ﻿import { AliRTS, LocalStream, RtsClient } from "aliyun-rts-sdk";
-import React, {
-  memo,
-  RefObject,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import React, { memo, useCallback, useEffect, useMemo, useState } from "react";
+import "./index.css";
 
 enum StatusStream {
+  connecting = "connecting",
+  connected = "connected",
   started = "started",
   ended = "ended",
 }
@@ -21,6 +16,8 @@ export default memo(() => {
   const [statusStream, setStatusStream] = useState<StatusStream>(
     StatusStream.ended
   );
+  const [audioConfig, setAudioConfig] = useState(false);
+  const [cameraConfig, setCameraConfig] = useState(false);
 
   useEffect(() => {
     aliRts
@@ -36,49 +33,59 @@ export default memo(() => {
         alert(`not support message: ${err.message}`);
       });
     return () => {
+      localStream?.stop();
       aliRts.unpublish();
     };
-  }, [aliRts]);
+  }, [aliRts, localStream]);
 
-  const Hls = useMemo(() => {
-    if (host) {
-      // return (
-      //   <ReactHlsPlayer
-      //     playerRef={playerRef.current as any}
-      //     src={host}
-      //     autoPlay={false}
-      //     controls={true}
-      //     width="100%"
-      //     height="auto"
-      //   />
-      // );
+  useEffect(() => {
+    if (localStream) {
+      console.log({ audioConfig });
+      if (audioConfig) {
+        localStream.enableAudio();
+      } else {
+        localStream.disableAudio();
+      }
     }
-    return <div></div>;
-  }, [host]);
+  }, [audioConfig, localStream]);
+
+  useEffect(() => {
+    if (localStream) {
+      console.log({ cameraConfig });
+      if (cameraConfig) {
+        localStream.enableVideo();
+      } else {
+        localStream.disableVideo();
+      }
+    }
+  }, [cameraConfig, localStream]);
 
   const MediaElement = useMemo(() => {
     return <video width={500} height={300}></video>;
   }, []);
 
-  const addIngestStream = useCallback(() => {
+  const upsertIngestStream = useCallback(() => {
+    setStatusStream(StatusStream.connecting);
     AliRTS.createStream({
-      audio: true,
-      video: false,
-      screen: true,
+      audio: audioConfig,
+      video: cameraConfig,
+      screen: false,
     })
       .then((stream) => {
         // Preview the content of the ingested stream. The mediaElement parameter indicates the media type of the stream. Valid values of the mediaElement parameter: audio and video.
         setLocalStream(stream);
+        setStatusStream(StatusStream.connected);
         // localStream.play(MediaElement as any);
       })
       .catch((err) => {
         console.error("createStream", err);
+        setStatusStream(StatusStream.ended);
         alert(err.message);
         // The local stream failed to be added.
       });
-  }, []);
+  }, [audioConfig, cameraConfig]);
 
-  const startIngestStream = useCallback(() => {
+  const startOrRestartIngestStream = useCallback(() => {
     if (localStream) {
       aliRts
         .publish(host, localStream)
@@ -89,6 +96,7 @@ export default memo(() => {
         .catch((err) => {
           // The stream failed to be ingested.
           console.error("publish", err);
+          setStatusStream(StatusStream.ended);
           alert(err.message);
         });
     }
@@ -120,25 +128,54 @@ export default memo(() => {
           }}
         ></textarea>
       </div>
+      <br />
+
+      <label htmlFor={"audio"}>Audio</label>
+      <input
+        id="audio"
+        type={"checkbox"}
+        value={+audioConfig}
+        onChange={(e) => setAudioConfig(e.target.checked)}
+      />
+      <label htmlFor={"camera"}>Camera</label>
+      <input
+        id="camera"
+        type={"checkbox"}
+        value={+audioConfig}
+        onChange={(e) => {
+          setCameraConfig(e.target.checked);
+        }}
+      />
+
+      {statusStream === StatusStream.connecting && <div>Connecting...</div>}
+      <div>videoTrack: {localStream?.videoTrack?.muted}</div>
+      <div>audioTrack: {localStream?.audioTrack?.muted}</div>
       <div>
-        {statusStream === StatusStream.ended && (
+        {[
+          StatusStream.ended,
+          StatusStream.connecting,
+          StatusStream.connected,
+        ].includes(statusStream) && (
           <button
             onClick={() => {
-              addIngestStream();
+              upsertIngestStream();
             }}
           >
-            Add Stream
+            {localStream ? "Update" : "Add"} Stream
           </button>
         )}
-        {localStream && statusStream === StatusStream.ended && (
-          <button
-            onClick={() => {
-              startIngestStream();
-            }}
-          >
-            Start
-          </button>
-        )}
+        {localStream &&
+          [StatusStream.ended, StatusStream.connected].includes(
+            statusStream
+          ) && (
+            <button
+              onClick={() => {
+                startOrRestartIngestStream();
+              }}
+            >
+              Start
+            </button>
+          )}
         {statusStream === StatusStream.started && (
           <button
             onClick={() => {
@@ -149,7 +186,6 @@ export default memo(() => {
           </button>
         )}
       </div>
-      <div>{Hls}</div>
       <div>{MediaElement}</div>
     </div>
   );
