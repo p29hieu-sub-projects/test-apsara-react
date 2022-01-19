@@ -1,5 +1,11 @@
 ﻿import { AliRTS, LocalStream, RtsClient } from "aliyun-rts-sdk";
-import React, { memo, useCallback, useEffect, useMemo, useState } from "react";
+import React, {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import "./index.css";
 
 enum StatusStream {
@@ -18,6 +24,11 @@ export default memo(() => {
   );
   const [audioConfig, setAudioConfig] = useState(false);
   const [cameraConfig, setCameraConfig] = useState(false);
+  const [videoR, setVideoR] = useState<any>(null);
+
+  useEffect(() => {
+    setVideoR(document.getElementById("video"));
+  }, []);
 
   useEffect(() => {
     aliRts
@@ -61,7 +72,7 @@ export default memo(() => {
   }, [cameraConfig, localStream]);
 
   const MediaElement = useMemo(() => {
-    return <video width={500} height={300}></video>;
+    return <video width={500} height={300} id="video" controls muted></video>;
   }, []);
 
   const upsertIngestStream = useCallback(() => {
@@ -72,10 +83,15 @@ export default memo(() => {
       screen: false,
     })
       .then((stream) => {
+        stream.muted = false;
         // Preview the content of the ingested stream. The mediaElement parameter indicates the media type of the stream. Valid values of the mediaElement parameter: audio and video.
         setLocalStream(stream);
+        console.log(stream);
+
         setStatusStream(StatusStream.connected);
-        // localStream.play(MediaElement as any);
+        if (stream && stream.audioTrack) {
+          stream.play(videoR);
+        }
       })
       .catch((err) => {
         console.error("createStream", err);
@@ -83,7 +99,7 @@ export default memo(() => {
         alert(err.message);
         // The local stream failed to be added.
       });
-  }, [audioConfig, cameraConfig]);
+  }, [audioConfig, cameraConfig, videoR]);
 
   const startOrRestartIngestStream = useCallback(() => {
     if (localStream) {
@@ -92,6 +108,8 @@ export default memo(() => {
         .then(() => {
           // The stream is ingested.
           setStatusStream(StatusStream.started);
+
+          console.log("published");
         })
         .catch((err) => {
           // The stream failed to be ingested.
@@ -106,11 +124,23 @@ export default memo(() => {
     try {
       await aliRts.unpublish();
       setStatusStream(StatusStream.ended);
+      localStream?.stop();
+      videoR.srcObject = null;
     } catch (err: any) {
       console.error("unpublish", err);
       alert(err?.message);
     }
-  }, [aliRts]);
+  }, [aliRts, localStream, videoR]);
+
+  const stopInges = useCallback(async () => {
+    try {
+      localStream?.stop();
+      videoR.srcObject = null;
+    } catch (err: any) {
+      console.error("unpublish", err);
+      alert(err?.message);
+    }
+  }, [localStream, videoR]);
 
   return (
     <div>
@@ -119,9 +149,6 @@ export default memo(() => {
       </div>
       <div>
         <textarea
-          style={{
-            width: "100%",
-          }}
           rows={3}
           onChange={(e) => {
             setHost(e.target.value);
@@ -185,6 +212,13 @@ export default memo(() => {
             Pause
           </button>
         )}
+        <button
+          onClick={() => {
+            stopInges();
+          }}
+        >
+          Stop
+        </button>
       </div>
       <div>{MediaElement}</div>
     </div>
