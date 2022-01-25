@@ -1,4 +1,4 @@
-﻿import React, { memo, RefObject, useMemo, useRef, useState } from "react";
+import React, { memo, RefObject, useMemo, useRef, useState } from "react";
 import ReactHlsPlayer from "react-hls-player";
 
 export default memo(() => {
@@ -11,10 +11,9 @@ export default memo(() => {
         <ReactHlsPlayer
           playerRef={playerRef.current as any}
           src={host}
-          autoPlay={false}
+          autoPlay={true}
           controls={true}
-          width="100%"
-          height="auto"
+          muted={false}
         />
       );
     }
@@ -37,7 +36,9 @@ export default memo(() => {
         ></textarea>
       </div>
       <div></div>
-      <div>{Hls}</div>
+      <div style={{
+        margin: "15px"
+      }}>{Hls}</div>
     </div>
   );
 });
