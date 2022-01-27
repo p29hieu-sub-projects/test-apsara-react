@@ -22,7 +22,7 @@ export default memo(() => {
   const [statusStream, setStatusStream] = useState<StatusStream>(
     StatusStream.ended
   );
-  const [audioConfig, setAudioConfig] = useState(false);
+  const [audioConfig, setAudioConfig] = useState(true);
   const [cameraConfig, setCameraConfig] = useState(false);
   const [videoR, setVideoR] = useState<any>(null);
 
@@ -78,12 +78,12 @@ export default memo(() => {
   const upsertIngestStream = useCallback(() => {
     setStatusStream(StatusStream.connecting);
     AliRTS.createStream({
-      audio: audioConfig,
+      audio: true,
       video: cameraConfig,
       screen: false,
     })
       .then((stream) => {
-        stream.muted = false;
+        stream.enableAudio()
         // Preview the content of the ingested stream. The mediaElement parameter indicates the media type of the stream. Valid values of the mediaElement parameter: audio and video.
         setLocalStream(stream);
         console.log(stream);
@@ -99,7 +99,7 @@ export default memo(() => {
         alert(err.message);
         // The local stream failed to be added.
       });
-  }, [audioConfig, cameraConfig, videoR]);
+  }, [cameraConfig, videoR]);
 
   const startOrRestartIngestStream = useCallback(() => {
     if (localStream) {
@@ -161,14 +161,14 @@ export default memo(() => {
       <input
         id="audio"
         type={"checkbox"}
-        value={+audioConfig}
+        checked={audioConfig}
         onChange={(e) => setAudioConfig(e.target.checked)}
       />
       <label htmlFor={"camera"}>Camera</label>
       <input
         id="camera"
         type={"checkbox"}
-        value={+audioConfig}
+        checked={cameraConfig}
         onChange={(e) => {
           setCameraConfig(e.target.checked);
         }}
